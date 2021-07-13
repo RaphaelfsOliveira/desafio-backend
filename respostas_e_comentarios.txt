@@ -1,15 +1,35 @@
-1)
+1) O cliente vai primeiro acessar o Gateway API pensei nele como uma forma de separar os microserviços internos que podem se comunidar via Json Web Token e também gerenciar o escopo de 
+permissão de acesso do cliente e ainda unificar a autenticação do acesso do cliente a outros serviços
 
-2)
+2) depois de cadastrado no serviço de autenticação o Gateway loga esse acesso e retorna para um cliente um refresh token e um access token ambos com lifetime, o refresh com um lifetime de um 
+perído de 6 meses a um ano, e o access token com um perído de 24 horas ou mais esse access token vai ser usado para fazer requisições ao Gateway e quando ele expirar será gerado um novo
+access token a partir do refresh token (este não vai ficar transitando entre requisições e só será usado para adquirir o access token)
 
-3)
+3) depois de autenticado o cliente cliente tera acesso a fazer a requisição ai serviço de busca do Id do processo em um banco interno anteriormente configurado 
 
-4)
+4) esse banco vai retornar como comentado um arquivo que o serviço vai processar e pegar o id do documento dentro da coluna id_tjrj, essa busca será inserida no log com os dados do usuário
+o id que foi buscado e o id_tjrj dentro do documento
 
-5)
+5) a partir de então o serviço de busca vai comunicar com o Airflow dizendo que foi feita uma nova busca por um processo
 
-6)
+6) o Airflow vai ter algumas tarefas de execução agendadas, ou assincronas:
+ - Ele vai buscar dentro do banco de cache dos dados do TJRJ se esse processo já foi consultado antes
+ - Vai verificar se houve alguma alteração dentro da data da ultima consulta, consultando o serviço SOAP
+ - Vai logar a consulta ao serviço SOAP
+ - Se houve alteração no processo ele pode sobrescrever o processo antigo ou salvar um com os dados mais atualizados para guardar um histórico do processo, em um banco de cache de dados brutos
+ - Depois vai transformar os dados limpando parar guardar em um banco de cache de dados limpos e retornar esses dados a API que vai retornar a consulta ao usuário
+ - O Airflow também vai ter um serviço agendando em um perído provavelmente diario para um tarefa de consulta e atualização do banco de cache da dados brutos e banco de cache dos dados
+ limpos dos processos mais atualizados, caso haja alteração no processo, essa alteração será logada e será disparada uma tarefa para rabbitMQ que vai enviar por meio dos workers emails para 
+ os usuários que buscaram aqueles processos que tiveram alteração.
 
-7)
+7) Os logs em que pode existir mudanças de estrutura serao guardados como foi sugerido com o id do usuário e id_tjrj do processo e com o dado bruto em um campo JSON para poder depois
+ser reprocessado e restruturado caso haja grande mudança na estrutura, essa também foi a idéia por trás de guardar os dados brutos para serem transformados depois caso haja alguma alteração
+no formado do documento XML.
 
-8)
+Perguntas:
+
+- vii: resolvi isso com um tarefa que consulta diariamente os processos mais requisitados e salva em um banco de cache os dados brutos e depois transforma e salva em um banco de cache os dados
+limpos caso haja a necessidade de fazer uma consulta ou análise posterior, ou ainda sim quando o usuário pesquisar, mostrar uma informação mais estruturada. 
+
+- viii: eu faria essa consulta com uma tarefa do Spark em SQL dentro do banco de dados que tem os dados limpos para agilizar a consulta, passando a string como um argumento a ser consultado
+na query.
