@@ -15,7 +15,9 @@ class User(db.Model):
     created_on = db.Column(db.DateTime, server_default=db.func.now())
     updated_on = db.Column(db.DateTime, server_default=db.func.now(), server_onupdate=db.func.now())
     
-    id_token = db.relationship('Token', backref='User', lazy='dynamic', nullable=False)
+    id_refresh_token = db.relationship('RefreshToken', backref='User', lazy='dynamic', nullable=False)
+    id_access_token = db.relationship('AccessToken', backref='User', lazy='dynamic', nullable=False)
+    id_token = db.relationship('RefreshToken', backref='User', lazy='dynamic', nullable=False)
     id_scope = db.relationship('Scope', backref='User', lazy='dynamic', nullable=False)
 
     def __init__(self, first_name, last_name, email, is_admin=False, is_active=True):
